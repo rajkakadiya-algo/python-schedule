@@ -2368,23 +2368,16 @@ def cors_test():
 def upload_image():
     """Upload image to Google Cloud Storage using working example pattern"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
-
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return jsonify({'status': 'ok'}), 200
 
         # Check if image file is present
         if 'image' not in request.files:
             return jsonify({
                 "success": False,
                 "error": "No image file provided"
-            }), 400, response_headers
+            }), 400
 
         file = request.files['image']
         
@@ -2393,14 +2386,14 @@ def upload_image():
             return jsonify({
                 "success": False,
                 "error": "No file selected or invalid filename"
-            }), 400, response_headers
+            }), 400
 
         # Validate file type
         if not allowed_file(file.filename):
             return jsonify({
                 "success": False,
                 "error": f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
-            }), 400, response_headers
+            }), 400
 
         # Upload to Google Cloud Storage using the working example approach
         file.seek(0)  # Reset file pointer
@@ -2416,14 +2409,14 @@ def upload_image():
                     "filename": file.filename
                 },
                 "message": "Image uploaded successfully"
-            }), 200, response_headers
+            }), 200
         else:
             logger.error("❌ Failed to upload image to cloud storage")
             return jsonify({
                 "success": False,
                 "statusCode": 500,
                 "error": "Failed to upload image to cloud storage"
-            }), 500, response_headers
+            }), 500
 
     except Exception as e:
         logger.error(f"❌ Error in upload_image: {e}")
@@ -2431,29 +2424,22 @@ def upload_image():
             "success": False,
             "statusCode": 500,
             "error": str(e)
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/schedule-multiple', methods=['POST', 'OPTIONS'])
 def schedule_multiple_platforms():
     """Schedule a post for multiple platforms with MongoDB integration"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
-
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return jsonify({'status': 'ok'}), 200
 
         # Parse JSON data
         if not request.is_json:
             return jsonify({
                 "success": False,
                 "error": "Content-Type must be application/json"
-            }), 400, response_headers
+            }), 400
 
         data = request.get_json()
         
@@ -2468,7 +2454,7 @@ def schedule_multiple_platforms():
                     return jsonify({
                         "success": False,
                         "error": f"Missing required field: {field}"
-                    }), 400, response_headers
+                    }), 400
 
             user_id = data['userId']
             content_data = data['content']
@@ -2481,7 +2467,7 @@ def schedule_multiple_platforms():
                 return jsonify({
                     "success": False,
                     "error": "platformScheduleTimes must be a dictionary"
-                }), 400, response_headers
+                }), 400
 
             # Validate that all platforms have schedule times
             for platform in platforms:
@@ -2489,7 +2475,7 @@ def schedule_multiple_platforms():
                     return jsonify({
                         "success": False,
                         "error": f"Missing schedule time for platform: {platform}"
-                    }), 400, response_headers
+                    }), 400
 
         else:
             # Old format with same time for all platforms
@@ -2499,7 +2485,7 @@ def schedule_multiple_platforms():
                     return jsonify({
                         "success": False,
                         "error": f"Missing required field: {field}"
-                    }), 400, response_headers
+                    }), 400
 
             user_id = data['userId']
             content_data = data['content']
@@ -2515,14 +2501,14 @@ def schedule_multiple_platforms():
             return jsonify({
                 "success": False,
                 "error": "Caption is required in content"
-            }), 400, response_headers
+            }), 400
 
         # Validate platforms
         if not isinstance(platforms, list) or not platforms:
             return jsonify({
                 "success": False,
                 "error": "Platforms must be a non-empty list"
-            }), 400, response_headers
+            }), 400
 
         # Schedule the post for multiple platforms with different times
         result = scheduler.schedule_post_for_multiple_platforms_with_times(
@@ -2534,16 +2520,16 @@ def schedule_multiple_platforms():
         )
 
         if result.get('success'):
-            return jsonify(result), 200, response_headers
+            return jsonify(result), 200
         else:
-            return jsonify(result), 400, response_headers
+            return jsonify(result), 400
 
     except Exception as e:
         logger.error(f"Error in schedule_multiple_platforms: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/user-posts/<user_id>', methods=['GET', 'OPTIONS'])
 def get_user_posts(user_id):
@@ -2558,7 +2544,7 @@ def get_user_posts(user_id):
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return ('', 204)
 
         limit = request.args.get('limit', 50, type=int)
         
@@ -2568,14 +2554,14 @@ def get_user_posts(user_id):
             "success": True,
             "posts": posts,
             "total_count": len(posts)
-        }), 200, response_headers
+        }), 200
 
     except Exception as e:
         logger.error(f"Error getting user posts: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/schedule', methods=['POST'])
 def schedule_post():
@@ -2595,7 +2581,7 @@ def schedule_post():
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return ('', 204)
 
         # Check if any data was sent
         if not request.form and not request.files:
@@ -2603,7 +2589,7 @@ def schedule_post():
             return jsonify({
                 "success": False,
                 "error": "No data provided"
-            }), 400, response_headers
+            }), 400
 
         platform = request.form.get('platform', '').lower()
         if platform not in ['facebook', 'twitter', 'instagram', 'linkedin']:
@@ -2611,7 +2597,7 @@ def schedule_post():
             return jsonify({
                 "success": False,
                 "error": "Platform must be 'facebook', 'twitter', 'instagram', or 'linkedin'"
-            }), 400, response_headers
+            }), 400
 
         # Initialize post data with required type checking
         message = request.form.get('message', '')
@@ -2619,7 +2605,7 @@ def schedule_post():
             return jsonify({
                 "success": False,
                 "error": "Message is required"
-            }), 400, response_headers
+            }), 400
 
         post_type = request.form.get('type', 'text')
         
@@ -2655,7 +2641,7 @@ def schedule_post():
                 return jsonify({
                     "success": False,
                     "error": f"Invalid date format: {str(e)}"
-                }), 400, response_headers
+                }), 400
 
         # Handle file upload
         media_file = request.files.get('media_file')
@@ -2665,7 +2651,7 @@ def schedule_post():
                 return jsonify({
                     "success": False,
                     "error": "Invalid file type. Allowed types: png, jpg, jpeg, gif"
-                }), 400, response_headers
+                }), 400
 
             try:
                 media_path = save_uploaded_file(media_file)
@@ -2685,7 +2671,7 @@ def schedule_post():
                 return jsonify({
                     "success": False,
                     "error": f"File upload failed: {str(e)}"
-                }), 400, response_headers
+                }), 400
 
         # Handle media URL if no file was uploaded
         elif request.form.get('photo_url') or request.form.get('image_url'):
@@ -2709,7 +2695,7 @@ def schedule_post():
             return jsonify({
                 "success": False,
                 "error": "Instagram posts require an image"
-            }), 400, response_headers
+            }), 400
 
         # Schedule the post
         logger.info(f"Sending post data to scheduler: {post_data}")
@@ -2724,13 +2710,13 @@ def schedule_post():
                 "platform": platform,
                 "scheduled_time": post_data.get('scheduled_time')
             }
-            return jsonify(response_data), 200, response_headers
+            return jsonify(response_data), 200
         else:
             logger.error(f"Scheduler error: {result}")
             return jsonify({
                 "success": False,
                 "error": result.get('error', 'Failed to process post')
-            }), 400, response_headers
+            }), 400
 
     except Exception as e:
         logger.error(f"Unexpected error in schedule endpoint: {str(e)}")
@@ -2738,7 +2724,7 @@ def schedule_post():
             "success": False,
             "error": str(e),
             "details": "Server error processing request"
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/posts', methods=['GET', 'OPTIONS'])
 def get_posts():
@@ -2753,7 +2739,7 @@ def get_posts():
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return ('', 204)
 
         result = scheduler.get_scheduled_posts()
         
@@ -2768,7 +2754,7 @@ def get_posts():
         }
         
         logger.info(f"Returning {response_data['total_count']} scheduled posts")
-        return jsonify(response_data), 200, response_headers
+        return jsonify(response_data), 200
         
     except Exception as e:
         logger.error(f"Get posts error: {e}")
@@ -2777,7 +2763,7 @@ def get_posts():
             "error": str(e),
             "scheduled_posts": {},
             "total_count": 0
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/posts/<post_id>', methods=['DELETE', 'OPTIONS'])
 def delete_post(post_id):
@@ -2792,7 +2778,7 @@ def delete_post(post_id):
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return ('', 204)
 
         result = scheduler.delete_scheduled_post(post_id)
         
@@ -2800,19 +2786,19 @@ def delete_post(post_id):
             return jsonify({
                 "success": True,
                 "message": "Post deleted successfully"
-            }), 200, response_headers
+            }), 200
         else:
             return jsonify({
                 "success": False,
                 "error": result.get('error', 'Post not found')
-            }), 404, response_headers
+            }), 404
             
     except Exception as e:
         logger.error(f"Delete post error: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/execute', methods=['POST'])
 def execute_scheduled_posts():
@@ -2864,14 +2850,14 @@ def schedule_single_platform():
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return ('', 204)
 
         # Parse JSON data
         if not request.is_json:
             return jsonify({
                 "success": False,
                 "error": "Content-Type must be application/json"
-            }), 400, response_headers
+            }), 400
 
         data = request.get_json()
         
@@ -2882,7 +2868,7 @@ def schedule_single_platform():
                 return jsonify({
                     "success": False,
                     "error": f"Missing required field: {field}"
-                }), 400, response_headers
+                }), 400
 
         user_id = data['userId']
         content_data = data['content']
@@ -2896,14 +2882,14 @@ def schedule_single_platform():
             return jsonify({
                 "success": False,
                 "error": f"Invalid platform. Must be one of: {', '.join(valid_platforms)}"
-            }), 400, response_headers
+            }), 400
 
         # Validate content
         if not content_data.get('caption'):
             return jsonify({
                 "success": False,
                 "error": "Caption is required in content"
-            }), 400, response_headers
+            }), 400
 
         # Schedule for single platform (convert to list for consistency)
         platforms = [platform]
@@ -2929,13 +2915,13 @@ def schedule_single_platform():
                     "status": "scheduled"
                 },
                 "message": f"Post scheduled successfully for {platform}"
-            }), 200, response_headers
+            }), 200
         else:
             return jsonify({
                 "success": False,
                 "statusCode": 400,
                 "error": result.get('error', 'Failed to schedule post')
-            }), 400, response_headers
+            }), 400
 
     except Exception as e:
         logger.error(f"Error in schedule_single_platform: {e}")
@@ -2943,7 +2929,7 @@ def schedule_single_platform():
             "success": False,
             "statusCode": 500,
             "error": str(e)
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/schedule-all', methods=['POST', 'OPTIONS'])
 def schedule_all_platforms():
@@ -2958,14 +2944,14 @@ def schedule_all_platforms():
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return ('', 204, response_headers)
+            return ('', 204)
 
         # Parse JSON data
         if not request.is_json:
             return jsonify({
                 "success": False,
                 "error": "Content-Type must be application/json"
-            }), 400, response_headers
+            }), 400
 
         data = request.get_json()
         
@@ -2976,7 +2962,7 @@ def schedule_all_platforms():
                 return jsonify({
                     "success": False,
                     "error": f"Missing required field: {field}"
-                }), 400, response_headers
+                }), 400
 
         user_id = data['userId']
         content_data = data['content']
@@ -2988,7 +2974,7 @@ def schedule_all_platforms():
             return jsonify({
                 "success": False,
                 "error": "Caption is required in content"
-            }), 400, response_headers
+            }), 400
 
         # Schedule for all platforms
         all_platforms = ['facebook', 'twitter', 'instagram', 'linkedin']
@@ -3015,13 +3001,13 @@ def schedule_all_platforms():
                     "totalPlatforms": len(all_platforms)
                 },
                 "message": f"Post scheduled successfully for all {len(all_platforms)} platforms"
-            }), 200, response_headers
+            }), 200
         else:
             return jsonify({
                 "success": False,
                 "statusCode": 400,
                 "error": result.get('error', 'Failed to schedule post')
-            }), 400, response_headers
+            }), 400
 
     except Exception as e:
         logger.error(f"Error in schedule_all_platforms: {e}")
@@ -3029,7 +3015,7 @@ def schedule_all_platforms():
             "success": False,
             "statusCode": 500,
             "error": str(e)
-        }), 500, response_headers
+        }), 500
 
 @app.route('/api/clear-failed-posts', methods=['POST'])
 def clear_failed_posts():
@@ -3082,11 +3068,11 @@ def post_now():
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return jsonify({"status": "ok"}), 200, response_headers
+            return jsonify({"status": "ok"}), 200
 
         # Parse JSON data
         if not request.is_json:
-            return jsonify({"error": "Content-Type must be application/json"}), 400, response_headers
+            return jsonify({"error": "Content-Type must be application/json"}), 400
 
         data = request.get_json()
         logger.info(f"Received post-now request: {data}")
@@ -3105,11 +3091,11 @@ def post_now():
         platforms = [p.lower() for p in platforms if p.lower() in valid_platforms]
         
         if not platforms:
-            return jsonify({"error": "At least one valid platform must be selected"}), 400, response_headers
+            return jsonify({"error": "At least one valid platform must be selected"}), 400
 
         # Validate content
         if not content_data.get('caption'):
-            return jsonify({"error": "Caption is required"}), 400, response_headers
+            return jsonify({"error": "Caption is required"}), 400
 
         # Post to each platform immediately
         results = {}
@@ -3198,14 +3184,14 @@ def post_now():
             "timestamp": datetime.now(pytz.UTC).isoformat()
         }
 
-        return jsonify(response_data), status_code, response_headers
+        return jsonify(response_data), status_code
 
     except Exception as e:
         logger.error(f"Error in post_now endpoint: {e}")
         return jsonify({
             "error": f"Failed to post: {str(e)}",
             "timestamp": datetime.now(pytz.UTC).isoformat()
-        }), 500, response_headers
+        }), 500
 
 if __name__ == '__main__':
     print("🚀 Starting Unified Social Media Scheduler API with MongoDB Integration")
