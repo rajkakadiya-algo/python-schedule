@@ -2354,6 +2354,16 @@ def health_check():
     """Health check endpoint"""
     return jsonify({"status": "healthy", "timestamp": datetime.now(pytz.UTC).isoformat()})
 
+@app.route('/api/cors-test', methods=['GET', 'POST', 'OPTIONS'])
+def cors_test():
+    """Test endpoint to verify CORS configuration"""
+    return jsonify({
+        "message": "CORS is working!", 
+        "origin": request.headers.get('Origin', 'No origin header'),
+        "method": request.method,
+        "timestamp": datetime.now(pytz.UTC).isoformat()
+    })
+
 @app.route('/api/upload-image', methods=['POST', 'OPTIONS'])
 def upload_image():
     """Upload image to Google Cloud Storage using working example pattern"""
