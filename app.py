@@ -21,6 +21,12 @@ import pymongo
 from pymongo import MongoClient
 from bson import ObjectId
 
+# Fix for Python 3.13 compatibility
+try:
+    import imghdr
+except ImportError:
+    import imghdr_backport as imghdr
+
 # Google Cloud Storage imports
 from google.cloud import storage
 from google.oauth2 import service_account
