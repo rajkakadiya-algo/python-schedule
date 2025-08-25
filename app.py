@@ -297,14 +297,43 @@ def instagram_post(image_path: str, caption: str, user_id: str, access_token: st
         return None
 
 app = Flask(__name__, static_folder='.')
+
+# Enhanced CORS configuration for better compatibility
 CORS(app, resources={
     r"/api/*": {
         "origins": ["https://algosocialai.vercel.app", "http://localhost:3000", "http://localhost:5000"],
-        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "methods": ["GET", "POST", "DELETE", "OPTIONS", "PUT", "PATCH"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+        "supports_credentials": True,
+        "expose_headers": ["Content-Type", "Authorization"]
     }
 })
+
+# Add manual CORS headers for additional compatibility
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    if origin in ["https://algosocialai.vercel.app", "http://localhost:3000", "http://localhost:5000"]:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT,PATCH')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Expose-Headers', 'Content-Type,Authorization')
+    return response
+
+# Explicit OPTIONS handler for preflight requests
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    origin = request.headers.get('Origin')
+    if origin in ["https://algosocialai.vercel.app", "http://localhost:3000", "http://localhost:5000"]:
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT,PATCH')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Max-Age', '86400')
+        return response
+    return jsonify({'error': 'Origin not allowed'}), 403
 
 # Add these configurations after app initialization
 UPLOAD_FOLDER = 'uploads'
