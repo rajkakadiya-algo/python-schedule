@@ -1,32 +1,10 @@
-from flask import Flask, request, jsonify, send_from_directory
-import requests
-import tweepy
-import json
-import os
-import time
-import random
-import tempfile
-import urllib.request
-import uuid
-import logging
-import schedule
-import pytz
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Union, List
-from threading import Thread
-from PIL import Image
-from flask_cors import CORS
-from werkzeug.utils import secure_filename
-import pymongo
-from pymongo import MongoClient
-from bson import ObjectId
-
 # Fix for Python 3.13 compatibility - imghdr was removed
+# This MUST be done before importing tweepy
+import sys
 try:
     import imghdr
 except ImportError:
     # Create a minimal imghdr compatibility shim
-    import sys
     from types import ModuleType
     
     # Create a fake imghdr module
@@ -61,6 +39,29 @@ except ImportError:
     
     imghdr.what = what
     sys.modules['imghdr'] = imghdr
+
+from flask import Flask, request, jsonify, send_from_directory
+import requests
+import tweepy
+import json
+import os
+import time
+import random
+import tempfile
+import urllib.request
+import uuid
+import logging
+import schedule
+import pytz
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, Union, List
+from threading import Thread
+from PIL import Image
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
+import pymongo
+from pymongo import MongoClient
+from bson import ObjectId
 
 # Google Cloud Storage imports
 from google.cloud import storage
