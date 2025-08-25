@@ -295,23 +295,40 @@ except Exception as e:
 
 # Initialize Google Cloud Storage client
 try:
-    # Use file-based authentication like the working example
-    credentials = service_account.Credentials.from_service_account_file(JSON_KEY_PATH)
-    gcs_client = storage.Client(credentials=credentials, project=credentials.project_id)
+    # Check if we have environment variable for credentials (Production)
+    gcs_credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+    if gcs_credentials_json:
+        # Production: Use environment variable
+        import json
+        credentials_info = json.loads(gcs_credentials_json)
+        credentials = service_account.Credentials.from_service_account_info(credentials_info)
+        gcs_client = storage.Client(credentials=credentials, project=credentials.project_id)
+        logger.info("Google Cloud Storage initialized with environment credentials")
+    else:
+        # Development: Use JSON file (fallback)
+        if os.path.exists(JSON_KEY_PATH):
+            credentials = service_account.Credentials.from_service_account_file(JSON_KEY_PATH)
+            gcs_client = storage.Client(credentials=credentials, project=credentials.project_id)
+            logger.info("Google Cloud Storage initialized with JSON file credentials")
+        else:
+            logger.error("No Google Cloud credentials found. Please set GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable or add sm1.json file.")
+            gcs_client = None
+            gcs_bucket = None
     
-    # Try to create bucket, handle if it already exists (like working example)
-    try:
-        gcs_bucket = gcs_client.create_bucket(GCS_BUCKET_NAME)
-        logger.info(f"✅ Bucket '{GCS_BUCKET_NAME}' created.")
-    except Conflict:
-        gcs_bucket = gcs_client.bucket(GCS_BUCKET_NAME)
-        logger.info(f"ℹ️ Bucket '{GCS_BUCKET_NAME}' already exists. Using it.")
-    except Exception as create_error:
-        # If creation fails with other error, just get bucket reference
-        gcs_bucket = gcs_client.bucket(GCS_BUCKET_NAME)
-        logger.info(f"Using existing Google Cloud Storage bucket '{GCS_BUCKET_NAME}'")
-    
-    logger.info("Google Cloud Storage connection established successfully")
+    # Try to create bucket if client was initialized successfully
+    if gcs_client:
+        try:
+            gcs_bucket = gcs_client.create_bucket(GCS_BUCKET_NAME)
+            logger.info(f"✅ Bucket '{GCS_BUCKET_NAME}' created.")
+        except Conflict:
+            gcs_bucket = gcs_client.bucket(GCS_BUCKET_NAME)
+            logger.info(f"ℹ️ Bucket '{GCS_BUCKET_NAME}' already exists. Using it.")
+        except Exception as create_error:
+            # If creation fails with other error, just get bucket reference
+            gcs_bucket = gcs_client.bucket(GCS_BUCKET_NAME)
+            logger.info(f"Using existing Google Cloud Storage bucket '{GCS_BUCKET_NAME}'")
+        
+        logger.info("Google Cloud Storage connection established successfully")
 except Exception as e:
     logger.error(f"Failed to connect to Google Cloud Storage: {e}")
     gcs_client = None
