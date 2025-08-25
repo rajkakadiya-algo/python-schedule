@@ -257,9 +257,10 @@ def instagram_post(image_path: str, caption: str, user_id: str, access_token: st
 app = Flask(__name__, static_folder='.')
 CORS(app, resources={
     r"/api/*": {
-        "origins": "*",
+        "origins": ["https://algosocialai.vercel.app", "http://localhost:3000", "http://localhost:5000"],
         "methods": ["GET", "POST", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
     }
 })
 
