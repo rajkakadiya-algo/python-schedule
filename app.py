@@ -21,11 +21,46 @@ import pymongo
 from pymongo import MongoClient
 from bson import ObjectId
 
-# Fix for Python 3.13 compatibility
+# Fix for Python 3.13 compatibility - imghdr was removed
 try:
     import imghdr
 except ImportError:
-    import imghdr_backport as imghdr
+    # Create a minimal imghdr compatibility shim
+    import sys
+    from types import ModuleType
+    
+    # Create a fake imghdr module
+    imghdr = ModuleType('imghdr')
+    
+    def what(file, h=None):
+        """Minimal imghdr.what implementation for tweepy compatibility"""
+        if hasattr(file, 'read'):
+            # File-like object
+            header = file.read(32)
+            file.seek(0)  # Reset file position
+        else:
+            # File path string
+            try:
+                with open(file, 'rb') as f:
+                    header = f.read(32)
+            except:
+                return None
+        
+        # Simple image format detection based on file headers
+        if header.startswith(b'\xff\xd8\xff'):
+            return 'jpeg'
+        elif header.startswith(b'\x89PNG\r\n\x1a\n'):
+            return 'png'
+        elif header.startswith(b'GIF8'):
+            return 'gif'
+        elif header.startswith(b'RIFF') and b'WEBP' in header:
+            return 'webp'
+        elif header.startswith(b'BM'):
+            return 'bmp'
+        return None
+    
+    imghdr.what = what
+    sys.modules['imghdr'] = imghdr
 
 # Google Cloud Storage imports
 from google.cloud import storage
