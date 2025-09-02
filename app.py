@@ -898,8 +898,8 @@ class SocialMediaScheduler:
         # Twitter credentials - replace with your actual credentials
         self.tw_consumer_key = "PR7xsEwNEuSpqTI2dRF8nfS1h"
         self.tw_consumer_secret = "qd3xHOxs9xfZ0VD4z8RRWHvASJRP9NnIWrxwBFAUIdVO7QeEff"
-        self.tw_access_token = "1925047617152811009-T4rohuOAtf0OT9fxZBDvkZdxbjzsHy"
-        self.tw_access_token_secret = "vH6QfxtpdAOfKcdhoaAneJ41OGAwzOdpmA8GtH8Llfnm4"
+        self.tw_access_token = "1925047617152811009-IOQGri4vIUalo32VKnG1o47ghwTqOU"
+        self.tw_access_token_secret = "mrf3ry4BBSzeNqU4gqjOWBYOtQsy78n7iWcQrcHdpao5r"
         self.tw_bearer_token = "AAAAAAAAAAAAAAAAAAAAALFa2AEAAAAAYnv%2F5X%2FYOTYR6TVyBvA1Nfgeem8%3DnWn9WDZcwB8CXjvcHRuusw0CoRV0KtH1boOUtMpGTGqvUeFTQU"
         
         # Instagram credentials - replace with your actual credentials
