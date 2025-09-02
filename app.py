@@ -908,8 +908,8 @@ class SocialMediaScheduler:
 
         # LinkedIn credentials - replace with your actual credentials
         self.linkedin_client_id = "77h94rbzkymv01"
-        self.linkedin_client_secret = "WPL_AP1.Ij1La35D5eXnsP0R.Lbv0Dw=="
-        self.linkedin_access_token = "AQWczWrsSbLrnckuFvU9u4w6BtaJHz024eF6VgpKaXZDNOz2qA7H5lhKX5Wa1umMqxuFngDLo_29PUCZIH-z0lnxeBQPNCy1ef80rTftgWyesvxGICd22idRZCFf6D9wtnNuPUPS6e77CJwdIfaAyp4ufNczh1XwmC_iWoJYntjasobCNTrGeQN32skg5YOXDaFTBCjP--xa3N5uPLXq3VKByPM98_TmHTwosX7gE_bAA9iSJPj32Yjy0gHR-EQD5rim6dSp7Q0pTFVqkDbiKqnUN75qpCHxYx95lcRHZPHfSWQHhEiDbZsjSUu33BCEsOX0Ct9z96F4vV8l4FJdeLFM3fP6oA"  # Will be set when user authenticates
+        self.linkedin_client_secret = "WPL_AP1.naGaLVGv600B929L.IdPw4A=="
+        self.linkedin_access_token = "AQV8li1ofX2ctfN-tJin9zh0LvVpOk15H-W8LxEYwWvFm3b8xkJVzsgQd-Woim6yg_GLSxgJpX3QhNUbeDoGMcCzHk98cY4_M9Ex5QyyB1DG7NmEWjf2HAaNEVxuZ1fDujK6d8OyJRXagWDFi5V_RKHsaS3QtdgKKHtOORvmDwikl0jYqK6YQf5A6rX86ERBOgkD_dqKr2wRcDpXuqGHGILs4F05lSMTibTj8KfqzaSYZ-sg0rttxA4omMhnVJX765cS4GuFIe1wcxnQMrXQX3__Pf7m-Dy2I_eSsxp8fBhP-o5lY_6m1nl2V2D8xXl8WBjjFHTlPapIrI_zuwtOYGl9ikoRRw"  # Will be set when user authenticates
         self.linkedin_api_base = "https://api.linkedin.com/v2"
         self.linkedin_user_id = "pQ8VCwYg4Y"  # Will be set when user authenticates
         
