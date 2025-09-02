@@ -896,8 +896,8 @@ class SocialMediaScheduler:
         self.fb_page_id = "654470507748535"
         
         # Twitter credentials - replace with your actual credentials
-        self.tw_consumer_key = "PR7xsEwNEuSpqTI2dRF8nfS1h"
-        self.tw_consumer_secret = "qd3xHOxs9xfZ0VD4z8RRWHvASJRP9NnIWrxwBFAUIdVO7QeEff"
+        self.tw_consumer_key = "rf9qnC2UzWfIVyaJjTbwjD87M"
+        self.tw_consumer_secret = "kZa2NgvBxDv3dIJY5nT9oc1mE2OYMeJCfwHHuyFYt5NbBPz67N"
         self.tw_access_token = "1925047617152811009-IOQGri4vIUalo32VKnG1o47ghwTqOU"
         self.tw_access_token_secret = "mrf3ry4BBSzeNqU4gqjOWBYOtQsy78n7iWcQrcHdpao5r"
         self.tw_bearer_token = "AAAAAAAAAAAAAAAAAAAAALFa2AEAAAAAYnv%2F5X%2FYOTYR6TVyBvA1Nfgeem8%3DnWn9WDZcwB8CXjvcHRuusw0CoRV0KtH1boOUtMpGTGqvUeFTQU"
