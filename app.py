@@ -347,6 +347,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 MONGODB_URI = "mongodb+srv://rahultummaalgobrainai:Iqq4Vs9zpWHoIfLK@algowhatsapp.84eyv9q.mongodb.net/Al-SocialMedia?retryWrites=true&w=majority"
 DB_NAME = "Al-SocialMedia"
 COLLECTION_NAME = "posts"
+USAGE_COLLECTION_NAME = "usage_tracking"
 
 # Google Cloud Storage Configuration
 JSON_KEY_PATH = "sm1.json"  # Path to service account key file
@@ -357,12 +358,14 @@ try:
     mongo_client = MongoClient(MONGODB_URI)
     db = mongo_client[DB_NAME]
     scheduled_posts_collection = db[COLLECTION_NAME]
+    usage_tracking_collection = db[USAGE_COLLECTION_NAME]
     logger.info("MongoDB connection established successfully")
 except Exception as e:
     logger.error(f"Failed to connect to MongoDB: {e}")
     mongo_client = None
     db = None
     scheduled_posts_collection = None
+    usage_tracking_collection = None
 
 # Initialize Google Cloud Storage client
 try:
@@ -407,6 +410,31 @@ except Exception as e:
 
 # Timezone configuration for India (IST)
 IST = pytz.timezone('Asia/Kolkata')
+
+def track_usage(endpoint_name: str, user_id: str = None, platform: str = None, action_type: str = None):
+    """Track endpoint usage in MongoDB"""
+    try:
+        if usage_tracking_collection is None:
+            logger.warning("Usage tracking collection not available")
+            return
+        
+        usage_record = {
+            "endpoint": endpoint_name,
+            "userId": user_id,
+            "platform": platform,
+            "actionType": action_type,
+            "timestamp": datetime.now(pytz.UTC),
+            "userAgent": request.headers.get('User-Agent', 'Unknown'),
+            "ipAddress": request.remote_addr or 'Unknown',
+            "requestMethod": request.method
+        }
+        
+        # Insert the usage record
+        usage_tracking_collection.insert_one(usage_record)
+        logger.info(f"Usage tracked: {endpoint_name} - User: {user_id}, Platform: {platform}")
+        
+    except Exception as e:
+        logger.error(f"Error tracking usage: {e}")
 
 def convert_ist_to_utc(ist_datetime_str: str) -> datetime:
     """Convert IST datetime string to UTC datetime object"""
@@ -2372,6 +2400,9 @@ def upload_image():
         if request.method == 'OPTIONS':
             return jsonify({'status': 'ok'}), 200
 
+        # Track usage
+        track_usage("upload-image", action_type="image_upload")
+
         # Check if image file is present
         if 'image' not in request.files:
             return jsonify({
@@ -2442,6 +2473,11 @@ def schedule_multiple_platforms():
             }), 400
 
         data = request.get_json()
+        
+        # Track usage
+        user_id = data.get('userId')
+        platforms = data.get('platforms', [])
+        track_usage("schedule-multiple", user_id=user_id, platform=",".join(platforms), action_type="schedule_post")
         
         # Check if we have platformScheduleTimes (new format) or scheduledTime (old format)
         has_platform_times = 'platformScheduleTimes' in data
@@ -2546,6 +2582,9 @@ def get_user_posts(user_id):
         if request.method == 'OPTIONS':
             return ('', 204)
 
+        # Track usage
+        track_usage("user-posts", user_id=user_id, action_type="get_user_posts")
+
         limit = request.args.get('limit', 50, type=int)
         
         posts = scheduler.get_user_scheduled_posts_from_db(user_id, limit)
@@ -2598,6 +2637,9 @@ def schedule_post():
                 "success": False,
                 "error": "Platform must be 'facebook', 'twitter', 'instagram', or 'linkedin'"
             }), 400
+
+        # Track usage
+        track_usage("schedule", platform=platform, action_type="schedule_single")
 
         # Initialize post data with required type checking
         message = request.form.get('message', '')
@@ -2876,6 +2918,9 @@ def schedule_single_platform():
         scheduled_time = data['scheduledTime']  # Expected format: "YYYY-MM-DD HH:MM"
         ai_generation = data.get('aiGeneration')
 
+        # Track usage
+        track_usage("schedule-single", user_id=user_id, platform=platform, action_type="schedule_single_platform")
+
         # Validate platform
         valid_platforms = ['facebook', 'twitter', 'instagram', 'linkedin']
         if platform not in valid_platforms:
@@ -2969,6 +3014,10 @@ def schedule_all_platforms():
         scheduled_time = data['scheduledTime']  # Expected format: "YYYY-MM-DD HH:MM"
         ai_generation = data.get('aiGeneration')
 
+        # Track usage
+        all_platforms = ['facebook', 'twitter', 'instagram', 'linkedin']
+        track_usage("schedule-all", user_id=user_id, platform=",".join(all_platforms), action_type="schedule_all_platforms")
+
         # Validate content
         if not content_data.get('caption'):
             return jsonify({
@@ -2977,7 +3026,6 @@ def schedule_all_platforms():
             }), 400
 
         # Schedule for all platforms
-        all_platforms = ['facebook', 'twitter', 'instagram', 'linkedin']
         
         # Use the scheduler to create the scheduled post
         result = scheduler.schedule_post_for_multiple_platforms(
@@ -3055,6 +3103,136 @@ def clear_failed_posts():
         logger.error(f"Clear failed posts error: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/usage-stats', methods=['GET', 'OPTIONS'])
+def get_usage_stats():
+    """Get usage statistics from the usage tracking collection"""
+    try:
+        # Handle preflight request
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+
+        if usage_tracking_collection is None:
+            return jsonify({
+                "success": False,
+                "error": "Usage tracking not available"
+            }), 500
+
+        # Get query parameters
+        user_id = request.args.get('userId')
+        endpoint = request.args.get('endpoint')
+        platform = request.args.get('platform')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        limit = request.args.get('limit', 100, type=int)
+
+        # Build query filter
+        query_filter = {}
+        
+        if user_id:
+            query_filter['userId'] = user_id
+        
+        if endpoint:
+            query_filter['endpoint'] = endpoint
+            
+        if platform:
+            query_filter['platform'] = {"$regex": platform, "$options": "i"}
+        
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                query_filter['timestamp'] = {"$gte": start_dt}
+            except ValueError:
+                return jsonify({
+                    "success": False,
+                    "error": "Invalid start date format. Use YYYY-MM-DD"
+                }), 400
+        
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                if 'timestamp' in query_filter:
+                    query_filter['timestamp']['$lt'] = end_dt
+                else:
+                    query_filter['timestamp'] = {"$lt": end_dt}
+            except ValueError:
+                return jsonify({
+                    "success": False,
+                    "error": "Invalid end date format. Use YYYY-MM-DD"
+                }), 400
+
+        # Get usage records
+        usage_records = list(usage_tracking_collection.find(
+            query_filter,
+            sort=[("timestamp", -1)],
+            limit=limit
+        ))
+
+        # Convert ObjectIds to strings for JSON serialization
+        for record in usage_records:
+            record['_id'] = str(record['_id'])
+            if record.get('timestamp'):
+                record['timestamp'] = record['timestamp'].isoformat()
+
+        # Get summary statistics
+        total_usage = usage_tracking_collection.count_documents(query_filter)
+        
+        # Endpoint usage summary
+        endpoint_pipeline = [
+            {"$match": query_filter},
+            {"$group": {"_id": "$endpoint", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        endpoint_stats = list(usage_tracking_collection.aggregate(endpoint_pipeline))
+
+        # Platform usage summary
+        platform_pipeline = [
+            {"$match": query_filter},
+            {"$match": {"platform": {"$ne": None}}},
+            {"$group": {"_id": "$platform", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        platform_stats = list(usage_tracking_collection.aggregate(platform_pipeline))
+
+        # User usage summary (if not filtered by specific user)
+        user_stats = []
+        if not user_id:
+            user_pipeline = [
+                {"$match": query_filter},
+                {"$match": {"userId": {"$ne": None}}},
+                {"$group": {"_id": "$userId", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 10}
+            ]
+            user_stats = list(usage_tracking_collection.aggregate(user_pipeline))
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "records": usage_records,
+                "totalCount": total_usage,
+                "summary": {
+                    "endpointStats": endpoint_stats,
+                    "platformStats": platform_stats,
+                    "topUsers": user_stats
+                },
+                "filters": {
+                    "userId": user_id,
+                    "endpoint": endpoint,
+                    "platform": platform,
+                    "startDate": start_date,
+                    "endDate": end_date,
+                    "limit": limit
+                }
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error getting usage stats: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.route('/api/post-now', methods=['POST', 'OPTIONS'])
 def post_now():
     """Post immediately to selected platforms"""
@@ -3085,6 +3263,9 @@ def post_now():
             'images': data.get('images', [])
         }
         user_id = data.get('userId', 'default_user')
+
+        # Track usage
+        track_usage("post-now", user_id=user_id, platform=",".join(platforms), action_type="post_immediately")
 
         # Validate platforms
         valid_platforms = ['facebook', 'twitter', 'instagram', 'linkedin']
@@ -3204,8 +3385,11 @@ if __name__ == '__main__':
     print("   GET  /api/user-posts/<user_id> - Get user scheduled posts (MongoDB)")
     print("   DELETE /api/posts/<post_id> - Delete a scheduled post")
     print("   POST /api/execute - Manually execute scheduled posts")
+    print("   POST /api/upload-image - Upload image to Google Cloud Storage")
+    print("   GET  /api/usage-stats - Get usage statistics and tracking data")
     print("   GET  /health - Health check")
     print("\n📊 Database: MongoDB (Al-SocialMedia)")
+    print("📈 Usage Tracking: Enabled (usage_tracking collection)")
     print("🕒 Timezone: Indian Standard Time (IST)")
     print(f"\nServer will start on port {os.getenv('PORT', 5002)}")
     
