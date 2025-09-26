@@ -1059,7 +1059,8 @@ class SocialMediaScheduler:
             content = {
                 "caption": content_data.get('caption', ''),
                 "hashtags": content_data.get('hashtags', []),
-                "images": content_data.get('images', [])
+                "images": content_data.get('images', []),
+                "videos": content_data.get('videos', [])
             }
             
             # If images are provided as URLs or paths, convert to required format
@@ -1071,6 +1072,16 @@ class SocialMediaScheduler:
                         "_id": ObjectId()
                     })
                 content["images"] = images
+            
+            # If videos are provided as URLs or paths, convert to required format
+            if 'video_urls' in content_data:
+                videos = []
+                for url in content_data['video_urls']:
+                    videos.append({
+                        "url": url,
+                        "_id": ObjectId()
+                    })
+                content["videos"] = videos
             
             # Create the scheduled post in database
             db_post_id = MongoDBHelper.create_scheduled_post(
@@ -1113,7 +1124,8 @@ class SocialMediaScheduler:
             content = {
                 "caption": content_data.get('caption', ''),
                 "hashtags": content_data.get('hashtags', []),
-                "images": content_data.get('images', [])
+                "images": content_data.get('images', []),
+                "videos": content_data.get('videos', [])
             }
             
             # If images are provided as URLs or paths, convert to required format
@@ -1333,28 +1345,41 @@ class SocialMediaScheduler:
                             'platform': platform
                         }
                         
-                        # Add images if available
+                        # Add media (images or videos) if available
+                        media_url = None
+                        media_type = None
+                        
                         if content.get('images'):
                             first_image = content['images'][0]
-                            image_url = first_image.get('url', '')
-                            post_data['photo_url'] = image_url
+                            media_url = first_image.get('url', '')
+                            media_type = 'image'
+                            post_data['photo_url'] = media_url
                             
                             # For Twitter, use 'image_url' parameter
                             if platform == 'twitter':
-                                post_data['image_url'] = image_url
+                                post_data['image_url'] = media_url
+                        elif content.get('videos'):
+                            first_video = content['videos'][0]
+                            media_url = first_video.get('url', '')
+                            media_type = 'video'
+                            post_data['video_url'] = media_url
                             
-                            # For LinkedIn, we need to download and save the image locally first
-                            elif platform == 'linkedin':
+                            # For Twitter, use 'video_url' parameter
+                            if platform == 'twitter':
+                                post_data['video_url'] = media_url
+                            
+                            # For LinkedIn, we need to download and save the media locally first
+                            elif platform == 'linkedin' and media_type == 'image':
                                 try:
-                                    logger.info(f"Downloading image for LinkedIn: {image_url[:100]}...")
+                                    logger.info(f"Downloading image for LinkedIn: {media_url[:100]}...")
                                     import tempfile
                                     import requests
                                     
                                     # If it's a Google Cloud Storage URL, generate a signed URL first
-                                    if 'storage.googleapis.com' in image_url:
+                                    if 'storage.googleapis.com' in media_url:
                                         try:
                                             # Extract bucket and blob name from URL
-                                            url_parts = image_url.replace('https://storage.googleapis.com/', '').split('/', 1)
+                                            url_parts = media_url.replace('https://storage.googleapis.com/', '').split('/', 1)
                                             if len(url_parts) == 2:
                                                 bucket_name = url_parts[0]
                                                 blob_name = url_parts[1]
@@ -1371,13 +1396,13 @@ class SocialMediaScheduler:
                                                     expiration=datetime.now(pytz.UTC) + timedelta(hours=1),
                                                     method="GET"
                                                 )
-                                                image_url = signed_url
+                                                media_url = signed_url
                                                 logger.info(f"Generated signed URL for LinkedIn: {signed_url[:100]}...")
                                         except Exception as signed_url_error:
                                             logger.warning(f"Failed to generate signed URL, using original: {signed_url_error}")
                                     
                                     # Download the image
-                                    response = requests.get(image_url, timeout=30)
+                                    response = requests.get(media_url, timeout=30)
                                     if response.status_code == 200:
                                         # Save to temporary file
                                         with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
@@ -1391,8 +1416,59 @@ class SocialMediaScheduler:
                                 except Exception as e:
                                     logger.error(f"Error downloading LinkedIn image: {e}")
                             
+                            # For LinkedIn videos, we need to download and save the video locally first
+                            elif platform == 'linkedin' and media_type == 'video':
+                                try:
+                                    logger.info(f"Downloading video for LinkedIn: {media_url[:100]}...")
+                                    import tempfile
+                                    import requests
+                                    
+                                    # If it's a Google Cloud Storage URL, generate a signed URL first
+                                    if 'storage.googleapis.com' in media_url:
+                                        try:
+                                            # Extract bucket and blob name from URL
+                                            url_parts = media_url.replace('https://storage.googleapis.com/', '').split('/', 1)
+                                            if len(url_parts) == 2:
+                                                bucket_name = url_parts[0]
+                                                blob_name = url_parts[1]
+                                                
+                                                # Generate signed URL
+                                                from google.cloud import storage
+                                                storage_client = storage.Client()
+                                                bucket = storage_client.bucket(bucket_name)
+                                                blob = bucket.blob(blob_name)
+                                                
+                                                # Generate a signed URL that's valid for 1 hour
+                                                signed_url = blob.generate_signed_url(
+                                                    version="v4",
+                                                    expiration=datetime.now(pytz.UTC) + timedelta(hours=1),
+                                                    method="GET"
+                                                )
+                                                media_url = signed_url
+                                                logger.info(f"Generated signed URL for LinkedIn video: {signed_url[:100]}...")
+                                        except Exception as signed_url_error:
+                                            logger.warning(f"Failed to generate signed URL for video, using original: {signed_url_error}")
+                                    
+                                    # Download the video
+                                    response = requests.get(media_url, timeout=60)  # Longer timeout for videos
+                                    if response.status_code == 200:
+                                        # Save to temporary file
+                                        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+                                            tmp_file.write(response.content)
+                                            temp_path = tmp_file.name
+                                            
+                                        post_data['video_path'] = temp_path
+                                        logger.info(f"Downloaded LinkedIn video to: {temp_path}")
+                                    else:
+                                        logger.error(f"Failed to download LinkedIn video: HTTP {response.status_code}")
+                                except Exception as e:
+                                    logger.error(f"Error downloading LinkedIn video: {e}")
+                            
                             if platform == 'facebook':
-                                post_data['type'] = 'photo'
+                                if media_type == 'video':
+                                    post_data['type'] = 'video'
+                                elif media_type == 'image':
+                                    post_data['type'] = 'photo'
                         
                         # Execute the post based on platform
                         result = None
@@ -1536,6 +1612,37 @@ class SocialMediaScheduler:
             logger.error(f"Error uploading photo to Facebook: {e}")
             raise Exception(f"Failed to upload photo: {str(e)}")
     
+    def upload_video_to_facebook(self, video_path: str) -> Optional[str]:
+        """Upload a video to Facebook and return the ID"""
+        try:
+            if not self.fb_page_access_token:
+                if not self.setup_facebook_page_access():
+                    raise Exception("Failed to setup Facebook page access")
+
+            # Create multipart form data with the video file
+            with open(video_path, 'rb') as video_file:
+                files = {
+                    'source': video_file,
+                }
+                data = {
+                    'access_token': self.fb_page_access_token,
+                    'published': 'false'  # Don't publish immediately
+                }
+                
+                url = f"{self.fb_base_url}/{self.fb_page_id}/videos"
+                response = requests.post(url, files=files, data=data, timeout=300)  # Longer timeout for videos
+                result = response.json()
+
+                if response.status_code == 200:
+                    return result.get('id')  # Return the video ID
+                else:
+                    logger.error(f"Failed to upload video: {result}")
+                    raise Exception(f"Failed to upload video: {result.get('error', {}).get('message')}")
+
+        except Exception as e:
+            logger.error(f"Error uploading video to Facebook: {e}")
+            raise Exception(f"Failed to upload video: {str(e)}")
+    
     def post_to_facebook(self, post_data: Dict) -> Dict[str, Any]:
         """Post to Facebook immediately or scheduled"""
         try:
@@ -1591,6 +1698,45 @@ class SocialMediaScheduler:
                 else:
                     return {"error": "No photo provided"}
                     
+            elif post_type == 'video':
+                # Handle local video file upload
+                if 'video_path' in post_data:
+                    try:
+                        # First upload the video
+                        video_id = self.upload_video_to_facebook(post_data['video_path'])
+                        if not video_id:
+                            return {"error": "Failed to upload video"}
+                        
+                        # Create the post with the uploaded video
+                        url = f"{self.fb_base_url}/{self.fb_page_id}/feed"
+                        data = {
+                            'message': message,
+                            'attached_media[0]': f'{{"media_fbid":"{video_id}"}}',
+                            'access_token': self.fb_page_access_token
+                        }
+                        
+                        response = requests.post(url, data=data)
+                        result = response.json()
+                        
+                        if response.status_code == 200:
+                            return {
+                                "success": True,
+                                "post_id": result.get('id'),
+                                "platform": "facebook",
+                                "message": "Video post published successfully"
+                            }
+                        else:
+                            return {"error": result}
+                            
+                    except Exception as e:
+                        return {"error": str(e)}
+                        
+                # Handle video URL
+                elif 'video_url' in post_data:
+                    return self._post_facebook_video(message, post_data['video_url'], None)
+                else:
+                    return {"error": "No video provided"}
+                    
             elif post_type == 'text':
                 return self._post_facebook_text(message, None)
             elif post_type == 'link':
@@ -1644,6 +1790,27 @@ class SocialMediaScheduler:
         else:
             return {"error": result}
     
+    def _post_facebook_video(self, message: str, video_url: str, scheduled_time: Optional[int]) -> Dict:
+        """Post video to Facebook"""
+        url = f"{self.fb_base_url}/{self.fb_page_id}/videos"
+        data = {
+            'description': message,
+            'file_url': video_url,
+            'access_token': self.fb_page_access_token
+        }
+        
+        if scheduled_time:
+            data['published'] = 'false'
+            data['scheduled_publish_time'] = scheduled_time
+        
+        response = requests.post(url, data=data, timeout=300)  # Longer timeout for videos
+        result = response.json()
+        
+        if response.status_code == 200:
+            return {"success": True, "video_id": result.get('id'), "platform": "facebook"}
+        else:
+            return {"error": result}
+    
     def _post_facebook_link(self, message: str, link: str, scheduled_time: Optional[int]) -> Dict:
         """Post link to Facebook"""
         url = f"{self.fb_base_url}/{self.fb_page_id}/feed"
@@ -1687,25 +1854,29 @@ class SocialMediaScheduler:
             text = post_data.get('text', '')
             # Handle both image_url and photo_url for flexibility
             image_url = post_data.get('image_url', '') or post_data.get('photo_url', '')
+            video_url = post_data.get('video_url', '')
             scheduled_time = post_data.get('scheduled_time')
             
-            logger.info(f"Twitter post - Text: {text[:50]}..., Image URL: {image_url[:100] if image_url else 'None'}")
+            media_url = image_url or video_url
+            media_type = 'image' if image_url else ('video' if video_url else None)
+            
+            logger.info(f"Twitter post - Text: {text[:50]}..., Media URL: {media_url[:100] if media_url else 'None'}, Type: {media_type}")
             
             if scheduled_time:
                 # Schedule the post
-                return self._schedule_twitter_post(text, image_url, scheduled_time)
+                return self._schedule_twitter_post(text, media_url, media_type, scheduled_time)
             else:
                 # Post immediately
-                return self._post_twitter_immediately(text, image_url)
+                return self._post_twitter_immediately(text, media_url, media_type)
                 
         except Exception as e:
             logger.error(f"Twitter post error: {e}")
             return {"error": str(e)}
     
-    def _post_twitter_immediately(self, text: str, image_url: str = '') -> Dict[str, Any]:
+    def _post_twitter_immediately(self, text: str, media_url: str = '', media_type: str = None) -> Dict[str, Any]:
         """Post to Twitter immediately"""
         try:
-            logger.info(f"Starting Twitter post - Text: {text[:100]}..., Image: {'Yes' if image_url else 'No'}")
+            logger.info(f"Starting Twitter post - Text: {text[:100]}..., Media: {'Yes' if media_url else 'No'}, Type: {media_type}")
             
             client = self.create_twitter_client()
             if not client:
@@ -1717,34 +1888,37 @@ class SocialMediaScheduler:
             api = tweepy.API(auth)
             
             media_ids = []
-            if image_url:
-                logger.info(f"Processing image for Twitter: {image_url}")
+            if media_url:
+                logger.info(f"Processing {media_type} for Twitter: {media_url}")
                 
                 # Check if it's a local file path
-                if os.path.exists(image_url):
+                if os.path.exists(media_url):
                     try:
-                        logger.info(f"Uploading local file: {image_url}")
+                        logger.info(f"Uploading local file: {media_url}")
                         # Upload local file directly
-                        media = api.media_upload(filename=image_url)
+                        media = api.media_upload(filename=media_url)
                         media_ids.append(media.media_id)
-                        logger.info(f"Successfully uploaded local image, media_id: {media.media_id}")
+                        logger.info(f"Successfully uploaded local {media_type}, media_id: {media.media_id}")
                     except Exception as e:
-                        logger.error(f"Error uploading local image: {e}")
-                        return {"error": f"Failed to upload local image: {str(e)}"}
+                        logger.error(f"Error uploading local {media_type}: {e}")
+                        return {"error": f"Failed to upload local {media_type}: {str(e)}"}
                 else:
                     # Handle remote URL
                     try:
-                        logger.info(f"Downloading and uploading remote image: {image_url}")
+                        logger.info(f"Downloading and uploading remote media: {media_url}")
                         import urllib.request
                         import tempfile
                         
                         # Create a temporary file with proper extension
-                        url_parts = image_url.split('.')
-                        file_ext = url_parts[-1] if len(url_parts) > 1 and url_parts[-1].lower() in ['jpg', 'jpeg', 'png', 'gif'] else 'jpg'
+                        url_parts = media_url.split('.')
+                        if media_type == 'video':
+                            file_ext = url_parts[-1] if len(url_parts) > 1 and url_parts[-1].lower() in ['mp4', 'mov', 'avi'] else 'mp4'
+                        else:
+                            file_ext = url_parts[-1] if len(url_parts) > 1 and url_parts[-1].lower() in ['jpg', 'jpeg', 'png', 'gif'] else 'jpg'
                         
                         with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_ext}') as tmp_file:
-                            # Download image with proper headers
-                            req = urllib.request.Request(image_url, headers={
+                            # Download media with proper headers
+                            req = urllib.request.Request(media_url, headers={
                                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                             })
                             
@@ -1838,7 +2012,7 @@ class SocialMediaScheduler:
             logger.error(f"Twitter immediate post error: {e}")
             return {"error": str(e)}
     
-    def _schedule_twitter_post(self, text: str, image_url: str, scheduled_time: str) -> Dict:
+    def _schedule_twitter_post(self, text: str, media_url: str, media_type: str, scheduled_time: str) -> Dict:
         """Schedule Twitter post for later"""
         try:
             # Validate datetime format
@@ -1859,7 +2033,8 @@ class SocialMediaScheduler:
             self.scheduled_posts[post_id] = {
                 'platform': 'twitter',
                 'text': text,
-                'image_url': image_url,
+                'image_url': media_url if media_type == 'image' else None,
+                'video_url': media_url if media_type == 'video' else None,
                 'scheduled_time': scheduled_time,
                 'status': 'scheduled'
             }
@@ -1948,36 +2123,57 @@ class SocialMediaScheduler:
             caption = post_data.get('message', '')
             image_path = post_data.get('photo_path')
             image_url = post_data.get('photo_url')
+            video_path = post_data.get('video_path')
+            video_url = post_data.get('video_url')
             
             # Handle scheduling
             if 'scheduled_time' in post_data:
                 return self._schedule_post(post_data)
             
             # For immediate posts
-            if not image_path and not image_url:
-                return {"error": "Image is required for Instagram posts"}
+            if not any([image_path, image_url, video_path, video_url]):
+                return {"error": "Image or video is required for Instagram posts"}
             
-            # Determine which image source to use
-            image_source = None
+            # Determine which media source to use (prioritize images if both are provided)
+            media_source = None
+            media_type = None
             if image_path and os.path.exists(image_path):
-                # Use local file if it exists
-                image_source = image_path
+                # Use local image file if it exists
+                media_source = image_path
+                media_type = 'image'
                 logger.info(f"Using local image file for Instagram post: {image_path}")
             elif image_url:
-                # Use remote URL (including Google Cloud Storage URLs)
-                image_source = image_url
+                # Use remote image URL (including Google Cloud Storage URLs)
+                media_source = image_url
+                media_type = 'image'
                 logger.info(f"Using remote image URL for Instagram post: {image_url[:100]}...")
+            elif video_path and os.path.exists(video_path):
+                # Use local video file
+                media_source = video_path
+                media_type = 'video'
+                logger.info(f"Using local video file for Instagram post: {video_path}")
+            elif video_url:
+                # Use remote video URL
+                media_source = video_url
+                media_type = 'video'
+                logger.info(f"Using remote video URL for Instagram post: {video_url[:100]}...")
             else:
-                return {"error": "No valid image found for Instagram post"}
+                return {"error": "No valid image or video found for Instagram post"}
             
-            # Post to Instagram using the instagram_post function
-            # The function now handles both local files and remote URLs
-            media_id = instagram_post(
-                image_path=image_source,  # Can be either local path or URL
-                caption=caption,
-                user_id=self.ig_user_id,
-                access_token=self.ig_access_token
-            )
+            # Post to Instagram using the appropriate function based on media type
+            if media_type == 'image':
+                media_id = instagram_post(
+                    image_path=media_source,  # Can be either local path or URL
+                    caption=caption,
+                    user_id=self.ig_user_id,
+                    access_token=self.ig_access_token
+                )
+            elif media_type == 'video':
+                # For now, return error as Instagram video posting needs more complex implementation
+                # TODO: Implement proper Instagram video posting functionality
+                return {"error": "Instagram video posting not yet implemented - images only supported currently"}
+            else:
+                return {"error": "Invalid media type for Instagram post"}
             
             if media_id:
                 return {
@@ -2037,7 +2233,9 @@ class SocialMediaScheduler:
                     'hashtags': hashtags,
                     'scheduled_time': post_data['scheduled_time'],
                     'photo_path': post_data.get('photo_path'),
-                    'photo_url': post_data.get('photo_url')
+                    'photo_url': post_data.get('photo_url'),
+                    'video_path': post_data.get('video_path'),
+                    'video_url': post_data.get('video_url')
                 }
                 logger.info(f"Scheduling LinkedIn post with data: {scheduled_post_data}")
                 return self._schedule_post(scheduled_post_data)
@@ -2049,21 +2247,39 @@ class SocialMediaScheduler:
                 'X-Restli-Protocol-Version': '2.0.0'
             }
 
-            # Handle media upload if present
+            # Handle media upload if present (prioritize images over videos if both provided)
             media_urn = None
+            media_type = "NONE"
             if post_data.get('photo_path'):
                 try:
                     media_urn = self._upload_image_to_linkedin(post_data['photo_path'])
+                    media_type = "IMAGE"
                 except Exception as e:
-                    logger.error(f"LinkedIn media upload error: {e}")
-                    return {"error": f"Failed to upload media: {str(e)}"}
+                    logger.error(f"LinkedIn image upload error: {e}")
+                    return {"error": f"Failed to upload image: {str(e)}"}
             elif post_data.get('photo_url'):
                 try:
                     # Download remote image and upload to LinkedIn
                     media_urn = self._upload_remote_image_to_linkedin(post_data['photo_url'])
+                    media_type = "IMAGE"
                 except Exception as e:
-                    logger.error(f"LinkedIn remote media upload error: {e}")
-                    return {"error": f"Failed to upload remote media: {str(e)}"}
+                    logger.error(f"LinkedIn remote image upload error: {e}")
+                    return {"error": f"Failed to upload remote image: {str(e)}"}
+            elif post_data.get('video_path'):
+                try:
+                    media_urn = self._upload_video_to_linkedin(post_data['video_path'])
+                    media_type = "VIDEO"
+                except Exception as e:
+                    logger.error(f"LinkedIn video upload error: {e}")
+                    return {"error": f"Failed to upload video: {str(e)}"}
+            elif post_data.get('video_url'):
+                try:
+                    # Download remote video and upload to LinkedIn
+                    media_urn = self._upload_remote_video_to_linkedin(post_data['video_url'])
+                    media_type = "VIDEO"
+                except Exception as e:
+                    logger.error(f"LinkedIn remote video upload error: {e}")
+                    return {"error": f"Failed to upload remote video: {str(e)}"}
 
             # Create post payload
             post_payload = {
@@ -2074,7 +2290,7 @@ class SocialMediaScheduler:
                         "shareCommentary": {
                             "text": post_text
                         },
-                        "shareMediaCategory": "IMAGE" if media_urn else "NONE"
+                        "shareMediaCategory": media_type
                     }
                 },
                 "visibility": {
@@ -2084,14 +2300,15 @@ class SocialMediaScheduler:
 
             # Add media if present
             if media_urn:
+                media_title = "Video" if media_type == "VIDEO" else "Image"
                 post_payload["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [{
                     "status": "READY",
                     "description": {
-                        "text": "Image"
+                        "text": media_title
                     },
                     "media": media_urn,
                     "title": {
-                        "text": "Image"
+                        "text": media_title
                     }
                 }]
 
@@ -2206,6 +2423,98 @@ class SocialMediaScheduler:
                     
         except Exception as e:
             logger.error(f"LinkedIn remote image upload error: {e}")
+            raise
+
+    def _upload_video_to_linkedin(self, video_path: str) -> Optional[str]:
+        """Upload video to LinkedIn and return media URN"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.linkedin_access_token}',
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0'
+            }
+
+            # Step 1: Register upload for video
+            register_payload = {
+                "registerUploadRequest": {
+                    "recipes": ["urn:li:digitalmediaRecipe:feedshare-video"],
+                    "owner": f"urn:li:person:{self.linkedin_user_id}",
+                    "serviceRelationships": [{
+                        "relationshipType": "OWNER",
+                        "identifier": "urn:li:userGeneratedContent"
+                    }]
+                }
+            }
+
+            register_response = requests.post(
+                f"{self.linkedin_api_base}/assets?action=registerUpload",
+                json=register_payload,
+                headers=headers
+            )
+
+            if register_response.status_code != 200:
+                raise Exception(f"Failed to register video upload: {register_response.text}")
+
+            register_data = register_response.json()
+            upload_url = register_data['value']['uploadMechanism']['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest']['uploadUrl']
+            asset_urn = register_data['value']['asset']
+
+            # Step 2: Upload the video
+            with open(video_path, 'rb') as f:
+                video_data = f.read()
+
+            upload_headers = {
+                'Authorization': f'Bearer {self.linkedin_access_token}'
+            }
+
+            upload_response = requests.put(
+                upload_url,
+                data=video_data,
+                headers=upload_headers,
+                timeout=600  # Longer timeout for video uploads
+            )
+
+            if upload_response.status_code not in [200, 201]:
+                raise Exception(f"Failed to upload video: {upload_response.text}")
+
+            return asset_urn
+
+        except Exception as e:
+            logger.error(f"LinkedIn video upload error: {e}")
+            raise
+
+    def _upload_remote_video_to_linkedin(self, video_url: str) -> Optional[str]:
+        """Download remote video and upload to LinkedIn"""
+        import tempfile
+        import os
+        
+        try:
+            logger.info(f"Downloading remote video for LinkedIn: {video_url}")
+            
+            # Download the video
+            response = requests.get(video_url, timeout=300)  # Longer timeout for videos
+            if response.status_code != 200:
+                raise Exception(f"Failed to download video: {response.status_code}")
+            
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_file:
+                temp_file.write(response.content)
+                temp_file_path = temp_file.name
+            
+            try:
+                # Upload to LinkedIn using the local file method
+                media_urn = self._upload_video_to_linkedin(temp_file_path)
+                logger.info(f"Successfully uploaded remote video to LinkedIn: {media_urn}")
+                return media_urn
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            logger.error(f"LinkedIn remote video upload error: {e}")
             raise
 
     def schedule_post(self, platform: str, post_data: Dict) -> Dict[str, Any]:
@@ -3260,7 +3569,8 @@ def post_now():
         content_data = {
             'caption': data.get('caption', ''),
             'hashtags': data.get('hashtags', []),
-            'images': data.get('images', [])
+            'images': data.get('images', []),
+            'videos': data.get('videos', [])
         }
         user_id = data.get('userId', 'default_user')
 
@@ -3294,39 +3604,66 @@ def post_now():
                     platform
                 )
                 
-                # Get image URL if available
-                image_url = content_data.get('images', [None])[0] if content_data.get('images') else None
+                # Get media URL (image or video) - prioritize images if both are provided
+                media_url = None
+                media_type = None
+                if content_data.get('images'):
+                    media_url = content_data['images'][0]
+                    media_type = 'image'
+                elif content_data.get('videos'):
+                    media_url = content_data['videos'][0]
+                    media_type = 'video'
                 
                 # Post to specific platform
                 if platform == 'facebook':
-                    post_data = {
-                        'type': 'photo' if image_url else 'text',
-                        'message': platform_content,
-                        'photo_url': image_url
-                    }
+                    if media_type == 'video':
+                        post_data = {
+                            'type': 'video',
+                            'message': platform_content,
+                            'video_url': media_url
+                        }
+                    elif media_type == 'image':
+                        post_data = {
+                            'type': 'photo',
+                            'message': platform_content,
+                            'photo_url': media_url
+                        }
+                    else:
+                        post_data = {
+                            'type': 'text',
+                            'message': platform_content
+                        }
                     result = scheduler.post_to_facebook(post_data)
                 
                 elif platform == 'twitter':
                     post_data = {
                         'text': platform_content,
-                        'image_url': image_url
+                        'image_url': media_url if media_type == 'image' else None,
+                        'video_url': media_url if media_type == 'video' else None
                     }
                     result = scheduler.post_to_twitter(post_data)
                 
                 elif platform == 'instagram':
-                    if not image_url:
-                        result = {"error": "Instagram requires an image"}
+                    if not media_url:
+                        result = {"error": "Instagram requires an image or video"}
                     else:
-                        post_data = {
-                            'message': platform_content,
-                            'photo_url': image_url
-                        }
+                        if media_type == 'video':
+                            post_data = {
+                                'message': platform_content,
+                                'video_url': media_url
+                            }
+                        else:
+                            post_data = {
+                                'message': platform_content,
+                                'photo_url': media_url
+                            }
                         result = scheduler.post_to_instagram(post_data)
                 
                 elif platform == 'linkedin':
                     post_data = {
                         'text': platform_content,
-                        'photo_url': image_url
+                        'photo_url': media_url if media_type == 'image' else None,
+                        'video_url': media_url if media_type == 'video' else None
                         # Don't pass hashtags separately - they're already in platform_content
                     }
                     result = scheduler.post_to_linkedin(post_data)
