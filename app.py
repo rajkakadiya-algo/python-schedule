@@ -936,7 +936,7 @@ class SocialMediaScheduler:
 
         # LinkedIn credentials - replace with your actual credentials
         self.linkedin_client_id = "77h94rbzkymv01"
-        self.linkedin_client_secret = "WPL_AP1.naGaLVGv600B929L.IdPw4A=="
+        self.linkedin_client_secret = "WPL_AP1.yBnIrbN7s9bmdltW.H2go9A=="
         self.linkedin_access_token = "AQV8li1ofX2ctfN-tJin9zh0LvVpOk15H-W8LxEYwWvFm3b8xkJVzsgQd-Woim6yg_GLSxgJpX3QhNUbeDoGMcCzHk98cY4_M9Ex5QyyB1DG7NmEWjf2HAaNEVxuZ1fDujK6d8OyJRXagWDFi5V_RKHsaS3QtdgKKHtOORvmDwikl0jYqK6YQf5A6rX86ERBOgkD_dqKr2wRcDpXuqGHGILs4F05lSMTibTj8KfqzaSYZ-sg0rttxA4omMhnVJX765cS4GuFIe1wcxnQMrXQX3__Pf7m-Dy2I_eSsxp8fBhP-o5lY_6m1nl2V2D8xXl8WBjjFHTlPapIrI_zuwtOYGl9ikoRRw"  # Will be set when user authenticates
         self.linkedin_api_base = "https://api.linkedin.com/v2"
         self.linkedin_user_id = "pQ8VCwYg4Y"  # Will be set when user authenticates
