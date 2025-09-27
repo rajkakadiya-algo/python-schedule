@@ -298,10 +298,19 @@ def instagram_post(image_path: str, caption: str, user_id: str, access_token: st
 
 app = Flask(__name__, static_folder='.')
 
+# List of allowed origins - add your frontend URL here
+ALLOWED_ORIGINS = [
+    "https://algosocialai.vercel.app", 
+    "http://localhost:3000", 
+    "http://localhost:5000",
+    "http://localhost:3001",  # Add other local development ports if needed
+    # Add your actual frontend domain here if different
+]
+
 # Enhanced CORS configuration for better compatibility
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["https://algosocialai.vercel.app", "http://localhost:3000", "http://localhost:5000"],
+        "origins": ALLOWED_ORIGINS,
         "methods": ["GET", "POST", "DELETE", "OPTIONS", "PUT", "PATCH"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
         "supports_credentials": True,
@@ -309,11 +318,29 @@ CORS(app, resources={
     }
 })
 
+def get_cors_headers(request_origin=None):
+    """Get appropriate CORS headers based on request origin"""
+    if request_origin and request_origin in ALLOWED_ORIGINS:
+        return {
+            'Access-Control-Allow-Origin': request_origin,
+            'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS, PUT, PATCH',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Expose-Headers': 'Content-Type, Authorization'
+        }
+    else:
+        # Fallback for unknown origins
+        return {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS, PUT, PATCH',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }
+
 # Add manual CORS headers for additional compatibility
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin in ["https://algosocialai.vercel.app", "http://localhost:3000", "http://localhost:5000"]:
+    if origin in ALLOWED_ORIGINS:
         response.headers.add('Access-Control-Allow-Origin', origin)
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
         response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT,PATCH')
@@ -325,7 +352,7 @@ def after_request(response):
 @app.route('/api/<path:path>', methods=['OPTIONS'])
 def handle_options(path):
     origin = request.headers.get('Origin')
-    if origin in ["https://algosocialai.vercel.app", "http://localhost:3000", "http://localhost:5000"]:
+    if origin in ALLOWED_ORIGINS:
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Origin', origin)
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
@@ -3546,20 +3573,23 @@ def get_usage_stats():
 def post_now():
     """Post immediately to selected platforms"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
+        # Get CORS headers based on request origin
+        origin = request.headers.get('Origin')
+        response_headers = get_cors_headers(origin)
 
         # Handle preflight request
         if request.method == 'OPTIONS':
-            return jsonify({"status": "ok"}), 200
+            response = jsonify({"status": "ok"})
+            for key, value in response_headers.items():
+                response.headers[key] = value
+            return response, 200
 
         # Parse JSON data
         if not request.is_json:
-            return jsonify({"error": "Content-Type must be application/json"}), 400
+            response = jsonify({"error": "Content-Type must be application/json"})
+            for key, value in response_headers.items():
+                response.headers[key] = value
+            return response, 400
 
         data = request.get_json()
         logger.info(f"Received post-now request: {data}")
@@ -3582,11 +3612,17 @@ def post_now():
         platforms = [p.lower() for p in platforms if p.lower() in valid_platforms]
         
         if not platforms:
-            return jsonify({"error": "At least one valid platform must be selected"}), 400
+            response = jsonify({"error": "At least one valid platform must be selected"})
+            for key, value in response_headers.items():
+                response.headers[key] = value
+            return response, 400
 
         # Validate content
         if not content_data.get('caption'):
-            return jsonify({"error": "Caption is required"}), 400
+            response = jsonify({"error": "Caption is required"})
+            for key, value in response_headers.items():
+                response.headers[key] = value
+            return response, 400
 
         # Post to each platform immediately
         results = {}
@@ -3702,14 +3738,20 @@ def post_now():
             "timestamp": datetime.now(pytz.UTC).isoformat()
         }
 
-        return jsonify(response_data), status_code
+        response = jsonify(response_data)
+        for key, value in response_headers.items():
+            response.headers[key] = value
+        return response, status_code
 
     except Exception as e:
         logger.error(f"Error in post_now endpoint: {e}")
-        return jsonify({
+        response = jsonify({
             "error": f"Failed to post: {str(e)}",
             "timestamp": datetime.now(pytz.UTC).isoformat()
-        }), 500
+        })
+        for key, value in response_headers.items():
+            response.headers[key] = value
+        return response, 500
 
 if __name__ == '__main__':
     print("🚀 Starting Unified Social Media Scheduler API with MongoDB Integration")
