@@ -3134,6 +3134,10 @@ def serve_static(filename):
 def schedule_single_platform():
     """Schedule a post for a single platform with MongoDB integration"""
     try:
+        # Handle preflight OPTIONS request
+        if request.method == 'OPTIONS':
+            return jsonify({"status": "ok"}), 200
+            
         # Parse JSON data
         if not request.is_json:
             return jsonify({
@@ -3220,6 +3224,10 @@ def schedule_single_platform():
 def schedule_all_platforms():
     """Schedule a post for all platforms with MongoDB integration"""
     try:
+        # Handle preflight OPTIONS request
+        if request.method == 'OPTIONS':
+            return jsonify({"status": "ok"}), 200
+            
         # Parse JSON data
         if not request.is_json:
             return jsonify({
