@@ -307,60 +307,19 @@ ALLOWED_ORIGINS = [
     # Add your actual frontend domain here if different
 ]
 
-# Enhanced CORS configuration for better compatibility
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ALLOWED_ORIGINS,
-        "methods": ["GET", "POST", "DELETE", "OPTIONS", "PUT", "PATCH"],
-        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
-        "supports_credentials": True,
-        "expose_headers": ["Content-Type", "Authorization"]
-    }
-})
+# Simplified CORS configuration to prevent duplicate headers
+CORS(app, 
+     origins=ALLOWED_ORIGINS,
+     methods=["GET", "POST", "DELETE", "OPTIONS", "PUT", "PATCH"],
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+     supports_credentials=True,
+     expose_headers=["Content-Type", "Authorization"])
 
-def get_cors_headers(request_origin=None):
-    """Get appropriate CORS headers based on request origin"""
-    if request_origin and request_origin in ALLOWED_ORIGINS:
-        return {
-            'Access-Control-Allow-Origin': request_origin,
-            'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS, PUT, PATCH',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Expose-Headers': 'Content-Type, Authorization'
-        }
-    else:
-        # Fallback for unknown origins
-        return {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS, PUT, PATCH',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
+# Note: Removed get_cors_headers function - flask-cors extension handles all CORS logic
 
-# Add manual CORS headers for additional compatibility
-@app.after_request
-def after_request(response):
-    origin = request.headers.get('Origin')
-    if origin in ALLOWED_ORIGINS:
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT,PATCH')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Expose-Headers', 'Content-Type,Authorization')
-    return response
+# Note: Removed manual CORS headers to prevent duplicates - flask-cors extension handles this
 
-# Explicit OPTIONS handler for preflight requests
-@app.route('/api/<path:path>', methods=['OPTIONS'])
-def handle_options(path):
-    origin = request.headers.get('Origin')
-    if origin in ALLOWED_ORIGINS:
-        response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT,PATCH')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Max-Age', '86400')
-        return response
-    return jsonify({'error': 'Origin not allowed'}), 403
+# Note: Removed explicit OPTIONS handler - flask-cors extension handles preflight requests
 
 # Add these configurations after app initialization
 UPLOAD_FOLDER = 'uploads'
@@ -2907,17 +2866,6 @@ def schedule_multiple_platforms():
 def get_user_posts(user_id):
     """Get scheduled posts for a specific user from MongoDB"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
-
-        # Handle preflight request
-        if request.method == 'OPTIONS':
-            return ('', 204)
-
         # Track usage
         track_usage("user-posts", user_id=user_id, action_type="get_user_posts")
 
@@ -2946,17 +2894,6 @@ def schedule_post():
         logger.info("Received schedule request")
         logger.info(f"Form data: {request.form}")
         logger.info(f"Files: {request.files}")
-
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        }
-
-        # Handle preflight request
-        if request.method == 'OPTIONS':
-            return ('', 204)
 
         # Check if any data was sent
         if not request.form and not request.files:
@@ -3108,17 +3045,6 @@ def schedule_post():
 def get_posts():
     """Get all scheduled posts"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        }
-
-        # Handle preflight request
-        if request.method == 'OPTIONS':
-            return ('', 204)
-
         result = scheduler.get_scheduled_posts()
         
         # Ensure we have the correct structure even if there are no posts
@@ -3147,17 +3073,6 @@ def get_posts():
 def delete_post(post_id):
     """Delete a scheduled post"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        }
-
-        # Handle preflight request
-        if request.method == 'OPTIONS':
-            return ('', 204)
-
         result = scheduler.delete_scheduled_post(post_id)
         
         if result.get('success'):
@@ -3219,17 +3134,6 @@ def serve_static(filename):
 def schedule_single_platform():
     """Schedule a post for a single platform with MongoDB integration"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
-
-        # Handle preflight request
-        if request.method == 'OPTIONS':
-            return ('', 204)
-
         # Parse JSON data
         if not request.is_json:
             return jsonify({
@@ -3316,17 +3220,6 @@ def schedule_single_platform():
 def schedule_all_platforms():
     """Schedule a post for all platforms with MongoDB integration"""
     try:
-        # Add CORS headers
-        response_headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
-
-        # Handle preflight request
-        if request.method == 'OPTIONS':
-            return ('', 204)
-
         # Parse JSON data
         if not request.is_json:
             return jsonify({
@@ -3573,23 +3466,13 @@ def get_usage_stats():
 def post_now():
     """Post immediately to selected platforms"""
     try:
-        # Get CORS headers based on request origin
-        origin = request.headers.get('Origin')
-        response_headers = get_cors_headers(origin)
-
         # Handle preflight request
         if request.method == 'OPTIONS':
-            response = jsonify({"status": "ok"})
-            for key, value in response_headers.items():
-                response.headers[key] = value
-            return response, 200
+            return jsonify({"status": "ok"}), 200
 
         # Parse JSON data
         if not request.is_json:
-            response = jsonify({"error": "Content-Type must be application/json"})
-            for key, value in response_headers.items():
-                response.headers[key] = value
-            return response, 400
+            return jsonify({"error": "Content-Type must be application/json"}), 400
 
         data = request.get_json()
         logger.info(f"Received post-now request: {data}")
@@ -3612,17 +3495,11 @@ def post_now():
         platforms = [p.lower() for p in platforms if p.lower() in valid_platforms]
         
         if not platforms:
-            response = jsonify({"error": "At least one valid platform must be selected"})
-            for key, value in response_headers.items():
-                response.headers[key] = value
-            return response, 400
+            return jsonify({"error": "At least one valid platform must be selected"}), 400
 
         # Validate content
         if not content_data.get('caption'):
-            response = jsonify({"error": "Caption is required"})
-            for key, value in response_headers.items():
-                response.headers[key] = value
-            return response, 400
+            return jsonify({"error": "Caption is required"}), 400
 
         # Post to each platform immediately
         results = {}
@@ -3738,20 +3615,14 @@ def post_now():
             "timestamp": datetime.now(pytz.UTC).isoformat()
         }
 
-        response = jsonify(response_data)
-        for key, value in response_headers.items():
-            response.headers[key] = value
-        return response, status_code
+        return jsonify(response_data), status_code
 
     except Exception as e:
         logger.error(f"Error in post_now endpoint: {e}")
-        response = jsonify({
+        return jsonify({
             "error": f"Failed to post: {str(e)}",
             "timestamp": datetime.now(pytz.UTC).isoformat()
-        })
-        for key, value in response_headers.items():
-            response.headers[key] = value
-        return response, 500
+        }), 500
 
 if __name__ == '__main__':
     print("🚀 Starting Unified Social Media Scheduler API with MongoDB Integration")
