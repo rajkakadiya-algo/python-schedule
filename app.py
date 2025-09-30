@@ -918,7 +918,7 @@ class SocialMediaScheduler:
         
         # Instagram credentials - replace with your actual credentials
         self.ig_user_id = "17841474183245806"
-        self.ig_access_token = "EAAYhQbxuBtMBOZCntJJnbPXGPpIaubva1DndF7RZCdZBloAJjsvG0zpLrcw32xy0xK8LKUQVdE4Pu1PapMywsnRR11Iz4ug6gZAS74IAKHNeeTpO5I3u3Utan73ZBlyeNiFPkrthLuXjXdKVDWwJaMujRbR1AstEENRM15R1v0tODPS5CCcYLeRUvE4I0"
+        self.ig_access_token = "EAAJZBvtBx1esBPtFfVUYbXVoEfTDbN7mAr8iZAGq8POZB5zkcctAQCFwV8w2tExxZBhrbweRsH5BCFPs0UNjRa37bdPJKra5slaEQ8pZAeZA2yCoZB9lZCrG5slvWEOq4deDzEAd3vqCp689elp730ZCk13HJoO8qO2zkZB44xZC3FViaF9UqZBqGqLR6YJkPSn8"
 
         # LinkedIn credentials - replace with your actual credentials
         self.linkedin_client_id = "77h94rbzkymv01"
