@@ -918,12 +918,12 @@ class SocialMediaScheduler:
         
         # Instagram credentials - replace with your actual credentials
         self.ig_user_id = "17841474183245806"
-        self.ig_access_token = "EAAJZBvtBx1esBPtFfVUYbXVoEfTDbN7mAr8iZAGq8POZB5zkcctAQCFwV8w2tExxZBhrbweRsH5BCFPs0UNjRa37bdPJKra5slaEQ8pZAeZA2yCoZB9lZCrG5slvWEOq4deDzEAd3vqCp689elp730ZCk13HJoO8qO2zkZB44xZC3FViaF9UqZBqGqLR6YJkPSn8"
+        self.ig_access_token = "EAARifI6UE5sBPrJxdZAeSNZBRf5ZB9OPDIBkDaGMzcHIGoF3GrYfwfESwr46EdgZANckZCwiTjlny4C824Qd5ZAz9LNfmZCk91ZCX7i0lZAL9dbQaJZA5ZCn7OD8bJ8s08hSttat1iW0ZC2hDdfZACOLiw0IJQJeqLAvZCwSLYrDpCU1QPSbtt9P5MPANQ21TkRhZAGcdYQ"
 
         # LinkedIn credentials - replace with your actual credentials
         self.linkedin_client_id = "77h94rbzkymv01"
         self.linkedin_client_secret = "WPL_AP1.vUhiTbhTRoeoqv70.uRTbnQ=="
-        self.linkedin_access_token = "AQVHjkiATYgxITg5C1Nn-cM2Ncrbgw4q7l5614eoJVcgbxPnTAdNrt4WQQZ4MKl1MHf3ySFTAjc81AkYeqqxs2hlLL0lWKXyoaCyOHbzFhIDKkY0e9maTyXerEfJLgcmzDKlSCFBmJdEgIP_8bJnebOQH9tSG3yNQGnWnYBUupi8NNLtBkhZdI4k5QHSxWBwcE-sTtYrL2oPQMYI49F7kmq9u-1cjVpWSr44DUGNtrv_t7x1j-0iT7OzdbimmH7diAe2c7mXA-j1t03k2ZyiKmv2pEYYINbOWrfdY7-LAfTWjtDUTdarVbdPSTKrfWYojRLLwiIcJQq_3ZS4neWSYF-CYYl0PA"  # Will be set when user authenticates
+        self.linkedin_access_token = "AQVW_d6su5uvM4edb5aa1QXRIbeP1UnTh4ivQvDHgZy4tNs4Ee-WKON8paWCqzsq6CNnd5I8wurOCE5fQc2YLVfE8R_TMyck7tHNs1IsTF0_dMHo5oNLbvgx4vpERXY96Eo64sc1ilCV97nTkgpYtcD7MIxB58Mx7AIIRcf7VoSJ9vDP_kJ7pnswDWPrclKDG7dAS4UOpEqMyVVVmwUTGDDW0BmgaF994SWEiVL4MmAphwVIblPdJv-fMQjx0Fpzm6joZJbSwQxMRIeKg-aigCWq9UGC61yc4ICklGMKTpfgr-KG1Qt_l_ls7rKcVj3s5FxxWtAUUgoxPhWtwAU_73CGPe02RQ"  # Will be set when user authenticates
         self.linkedin_api_base = "https://api.linkedin.com/v2"
         self.linkedin_user_id = "pQ8VCwYg4Y"  # Will be set when user authenticates
         
